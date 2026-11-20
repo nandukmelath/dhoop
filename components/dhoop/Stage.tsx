@@ -1113,7 +1113,15 @@ function QuotesCard({ session }: { session: Session }) {
       )}
       {session.booking && (
         <p className="mt-3 text-sm">
-          Site visit with <span className="font-medium">{session.booking.installer}</span> on <span className="font-medium">{session.booking.day}</span> at <span className="font-medium">{session.booking.time}</span>. A reminder comes the day before.
+          Site visit with <span className="font-medium">{session.booking.installer}</span> on <span className="font-medium">{session.booking.day}</span> at <span className="font-medium">{session.booking.time}</span>.{' '}
+          {session.booking.at ? (
+            <a className="font-bold underline decoration-2 underline-offset-4" href={`/api/plan/${encodeURIComponent(session.id)}/visit`}>
+              Add to calendar
+            </a>
+          ) : (
+            'Tell Dhoop the date and it can go in your calendar.'
+          )}
+          {session.booking.at ? ' It reminds you the day before.' : ''}
         </p>
       )}
     </Card>

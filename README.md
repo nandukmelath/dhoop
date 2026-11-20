@@ -8,6 +8,26 @@ Built for **Build with Agora, Bengaluru 2026**, Track 5 (Voice AI for Bharat), o
 
 > "Dhoop" (धूप) means sunlight.
 
+## For mentors and judges: two minutes
+
+Open **https://dhoop.onrender.com**, allow the microphone and press **Start talking**. No quiet place to speak? Tap the prompts under the microphone, or type. Then try these, in any of the six languages:
+
+1. "My bill is 3,200 rupees a month and I live in Bengaluru."
+2. "Show me the Vidhana Soudha in Bengaluru" (or allow location and say "Find my roof").
+3. "What should I install?" and then "Is it worth it in the long run?"
+4. "Can I get the subsidy?" and then "Who installs solar here?"
+5. "Explain it to my mother in Kannada."
+
+| The brief asks for | In Dhoop |
+| --- | --- |
+| Real-time conversational AI on Agora | An Agora Conversational AI agent in an RTC call, with RTM for the live transcript and the agent's state. It can be interrupted, it sees the bill and the roof through the camera, and it is replaced in the middle of a call, memory intact, to change language or when speech recognition fails. |
+| Natural voice with Murf Falcon | Murf Falcon speaks every reply in six languages, and also the passbook's voice note and the half-minute solar story. |
+| Agentic workflows | Twenty-eight tools the agent calls by itself: NASA sunshine, satellite building outlines, this week's weather, the government's registered vendors, installer quotes, a booked visit. |
+| A whole journey | Before: it remembers earlier calls and where the home is. During: the conversation. Action: the system designed, quotes asked for and a visit booked, each after a clear yes. After: a passbook with a voice note, the subsidy application tracked stage by stage, and the visit in the person's calendar with a reminder. |
+| A working demonstration | It is deployed at the address above. `npm run e2e` checks every tool with no call. |
+
+The three-minute demo, word for word, is in [DEMO.md](DEMO.md).
+
 ## Why this exists
 
 The national rooftop solar scheme, PM Surya Ghar: Muft Bijli Yojana, pays up to ₹78,000 towards a home system, and its portal shows the scheme closing on 31 March 2027. On 19 November 2026 the portal counted 68.6 lakh applications and 43.1 lakh installations: about 25 lakh households had applied and did not yet have a system. The way from one to the other is ten stages on a portal, a rule that the name on the bank account must be identical to the name on the electricity bill, a vendor to choose and a price to find, in a language many households are not comfortable in. The portal's own roof tool asks for a consumer number, a sanctioned load, a latitude and a longitude.

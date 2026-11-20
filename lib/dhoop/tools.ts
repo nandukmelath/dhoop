@@ -2,6 +2,7 @@ import { ASSUMPTIONS, LANG_ORDER, LANGS, LOAN, LONG_RUN, SQFT_PER_M2, SUBSIDY, t
 import { findNamedRoof, findRoofAt } from './findroof';
 import { inLakh, longRun } from './longrun';
 import { sunWeek } from './outlook';
+import { visitSaid, whenIs } from './visit';
 import { roofNow } from './today';
 import { voiceNote } from './passbook';
 import { geocode, sunshine } from './places';
@@ -779,15 +780,24 @@ export const TOOLS: ToolDef[] = [
       const time = str(a.time);
       if (!installer || !day || !time) return { ok: false, error: 'Need the installer, the day and the time.' };
       const id = newId('visit');
+      // The moment the spoken day and time mean, when they can be read. With it the visit goes into a calendar.
+      const start = whenIs(day, time, new Date());
       updateSession(
         sid,
         (s) => {
-          s.booking = { id, installer, day, time };
+          s.booking = { id, installer, day, time, at: start?.toISOString() };
           s.view = 'booked';
         },
-        { kind: 'bookVisit', text: `Site visit booked with ${installer}: ${day}, ${time}` },
+        { kind: 'bookVisit', text: `Site visit booked with ${installer}: ${start ? visitSaid(start) : `${day}, ${time}`}` },
       );
-      return { ok: true, booking_id: id, next: 'Confirm the visit in one sentence and say a reminder will come the day before. Then ask if they want anything else.' };
+      return {
+        ok: true,
+        booking_id: id,
+        ...(start ? { booked_for: visitSaid(start), in_their_calendar: 'A button on the screen puts the visit in their own calendar, with a reminder the day before.' } : { noted_as: `${day}, ${time}`, no_calendar_entry: 'The day or the time could not be read into a date, so there is no calendar entry. Do NOT promise a reminder.' }),
+        next: start
+          ? 'Confirm the visit in one sentence with its day and time. Then say they can tap "Add to calendar" on the screen, which also reminds them the day before. Dhoop itself sends no reminder: never say it will.'
+          : 'Confirm the visit in one sentence, say it is noted on the screen, and ask them to tell you the date so it can go in their calendar.',
+      };
     },
   },
 ];

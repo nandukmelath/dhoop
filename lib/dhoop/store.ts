@@ -272,7 +272,8 @@ export interface Session {
   /** The survey sent to installers. `kw` is the size they were asked to quote for. */
   survey?: { id: string; homeowner: string; sentAt: number; kw: number };
   quotes: Quote[];
-  booking?: { id: string; installer: string; day: string; time: string };
+  /** A booked site visit, as it was said. `at` is the moment it means, when the day and time could be read: with it, the visit can go into a calendar. */
+  booking?: { id: string; installer: string; day: string; time: string; at?: string };
   log: LogLine[];
   /** The device's own location, shared live by the person's browser. Dhoop finds the building from it. */
   device?: DeviceSpot;

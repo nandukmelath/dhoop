@@ -31,6 +31,7 @@ import { streetTotals } from '../lib/dhoop/street';
 import { vendorsFor, VENDOR_DISTRICTS, VENDOR_LISTS, VENDOR_STATES } from '../lib/dhoop/vendors';
 import { inLakh, longRun } from '../lib/dhoop/longrun';
 import { deviceKind, faultOf, iphoneBrowser, locationHelp } from '../lib/dhoop/whereami';
+import { timeSaid, visitCalendar, visitSaid, whenIs } from '../lib/dhoop/visit';
 import { appliancesSaid, askedCovered, bestHour, clockSaid, powerFrom, shareSaid, unitsFromHours, usualCovered } from '../lib/dhoop/power';
 import { bestAhead, dayName, skyWord, sunHoursFromMj, unitsOn, weekOutlook } from '../lib/dhoop/outlook';
 import { designSystem, monthlyInstalment, polygonAreaM2, roofCapacity, standardSizeAtLeast, standardSizeAtMost, subsidyForKw, tariffFromBill, throughTheYear } from '../lib/dhoop/solar';
@@ -1257,4 +1258,39 @@ test('a device that will not say where it is gets the reason and the way round i
   assert.match(locationHelp('unavailable', laptop), /Wi-Fi/);
   // Every answer leaves the person a way on that needs no location at all.
   for (const fault of ['refused', 'unavailable', 'slow', 'unsupported', 'insecure'] as const) for (const ua of [chromeOnIphone, android, laptop]) assert.match(locationHelp(fault, ua), /earch for your address above/);
+});
+
+test('a booked visit becomes a real calendar entry, and no reminder is promised without one', async () => {
+  // Friday 20 November 2026, half past eight in the evening in India.
+  const now = new Date('2026-11-20T15:00:00Z');
+  assert.deepEqual(timeSaid('10 am'), { hour: 10, minute: 0 });
+  assert.deepEqual(timeSaid('4'), { hour: 16, minute: 0 }, 'a bare four for a visit is the afternoon');
+  assert.deepEqual(timeSaid('10:30'), { hour: 10, minute: 30 });
+  assert.deepEqual(timeSaid('5.30 p.m.'), { hour: 17, minute: 30 });
+  assert.deepEqual(timeSaid('evening'), { hour: 17, minute: 0 });
+  assert.equal(timeSaid('sometime'), null);
+  assert.equal(whenIs('Saturday', '10 am', now)?.toISOString(), '2026-11-21T04:30:00.000Z', 'ten in the morning in India is half past four by the world clock');
+  assert.equal(whenIs('tomorrow', '4 pm', now)?.toISOString(), '2026-11-21T10:30:00.000Z');
+  assert.equal(whenIs('22 November', '11 am', now)?.toISOString(), '2026-11-22T05:30:00.000Z');
+  assert.equal(whenIs('Friday', '10 am', now)?.toISOString(), '2026-11-27T04:30:00.000Z', 'said on a Friday, "Friday" is next week');
+  assert.equal(whenIs('5 January', '10 am', now)?.toISOString(), '2027-01-05T04:30:00.000Z', 'a date already gone this year is next year');
+  assert.equal(whenIs('soon', '10 am', now), null, 'a day that cannot be read gives no moment, not a guess');
+  assert.equal(whenIs('today', '9 am', now), null, 'nor does a time already gone');
+  const start = whenIs('Saturday', '10 am', now)!;
+  assert.equal(visitSaid(start), 'Saturday 21 November, 10 am');
+  const file = visitCalendar({ id: 'visit-1', installer: 'Sunrise Solar, Jaipur', start, passbookUrl: 'https://example.org/plan/x', made: now });
+  assert.match(file, /DTSTART:20261121T043000Z\r\nDTEND:20261121T053000Z/);
+  assert.match(file, /TRIGGER:-P1D/, 'the reminder the day before is the calendar\'s own');
+  assert.match(file, /SUMMARY:Solar site visit: Sunrise Solar\\, Jaipur/);
+  assert.ok(file.startsWith('BEGIN:VCALENDAR\r\n') && file.endsWith('END:VCALENDAR\r\n'));
+
+  // The tool: a day it can read is booked for a moment; one it cannot is noted, with no reminder promised.
+  const sid = 'visit-booking';
+  const clear = (await findTool('bookVisit')!.run(sid, { installer: 'Sunrise Solar', day: 'tomorrow', time: '10 am' })) as Record<string, unknown>;
+  assert.equal(clear.ok, true);
+  assert.ok(clear.booked_for && getSession(sid)!.booking!.at);
+  assert.match(String(clear.next), /never say it will/);
+  const vague = (await findTool('bookVisit')!.run(sid, { installer: 'Sunrise Solar', day: 'sometime next month', time: 'whenever' })) as Record<string, unknown>;
+  assert.equal(getSession(sid)!.booking!.at, undefined);
+  assert.match(String(vague.no_calendar_entry), /Do NOT promise a reminder/);
 });
