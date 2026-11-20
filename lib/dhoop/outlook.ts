@@ -1,6 +1,7 @@
 import { MJ_PER_KWH } from './config';
 import { dailyYieldPerKw } from './solar';
 import { ensureSession, updateSession, type SunWeek } from './store';
+import { cloudsAt, noteFirstRefused, SECOND_SOURCE, skipFirst, weekOf } from './sky';
 
 /**
  * This week on the roof: the weather forecast for the home, turned into what its system would
@@ -54,7 +55,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 /** Forecasts already fetched, by place, kept for half an hour: a second ask in the same call is then instant. */
 const kept = new Map<string, { at: number; raw: { date: string; mj: number; rainChance?: number }[] }>();
 
-async function forecastAt(lat: number, lon: number): Promise<{ date: string; mj: number; rainChance?: number }[]> {
+async function fromFirstSource(lat: number, lon: number): Promise<{ date: string; mj: number; rainChance?: number }[]> {
   // To about a kilometre: finer than the forecast's own grid, and no more exact than it needs to be.
   const where = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   const had = kept.get(where);
@@ -74,14 +75,29 @@ async function forecastAt(lat: number, lon: number): Promise<{ date: string; mj:
   }
 }
 
+/** The week from the usual source, or from the second one when the usual one will not answer. `via` says which. */
+async function forecastAt(lat: number, lon: number): Promise<{ raw: Awaited<ReturnType<typeof fromFirstSource>>; via: string }> {
+  if (!skipFirst()) {
+    try {
+      return { raw: await fromFirstSource(lat, lon), via: FORECAST_SOURCE };
+    } catch (error) {
+      noteFirstRefused();
+      console.warn(`The usual weather source would not give the week (${String(error)}); asking the second.`);
+    }
+  }
+  return { raw: weekOf(await cloudsAt(lat, lon), lat, lon, Date.now()), via: SECOND_SOURCE };
+}
+
 /** Fetch the week for the home, put it on the screen, and give the agent the days in words. */
 export async function sunWeek(sid: string): Promise<Result> {
   const s = ensureSession(sid);
   if (!s.location) return { ok: false, error: 'No place is known yet.', next: 'Ask which town or city they are in, call setLocation, then call sunForecast again.' };
-  let raw: Awaited<ReturnType<typeof forecastAt>>;
+  let raw: Awaited<ReturnType<typeof fromFirstSource>>;
+  let via: string;
   try {
-    raw = await forecastAt(s.location.lat, s.location.lon);
-  } catch {
+    ({ raw, via } = await forecastAt(s.location.lat, s.location.lon));
+  } catch (error) {
+    console.warn(`No weather source gave the week: ${String(error)}`);
     return { ok: false, error: 'The weather forecast could not be fetched just now.', next: 'Say so in one sentence and offer to try again in a moment. Do not guess the weather.' };
   }
   const month = Number(raw[0].date.slice(5, 7)) - 1;
@@ -91,7 +107,7 @@ export async function sunWeek(sid: string): Promise<Result> {
   updateSession(
     sid,
     (x) => {
-      x.week = { key: `${place}:${Date.now().toString(36)}`, place, days, usualSunHours, fetchedAt: Date.now() };
+      x.week = { key: `${place}:${Date.now().toString(36)}`, place, days, usualSunHours, fetchedAt: Date.now(), ...(via === FORECAST_SOURCE ? {} : { via }) };
     },
     { kind: 'sunForecast', text: `Fetched this week's forecast for ${place}` },
   );
@@ -119,7 +135,8 @@ export async function sunWeek(sid: string): Promise<Result> {
     ...(design ? { units_over_the_seven_days: total } : {}),
     ...(usualSunHours ? { a_usual_day_this_month: `about ${unitsOn(kw, usualSunHours)} units${each}, from the long-term average for ${MONTHS[month]}` } : {}),
     ...(design ? { worth_over_the_seven_days: `about ${Math.round(total * design.tariff).toLocaleString('en-IN')} rupees at the price they pay for a unit` } : {}),
-    source: `A weather forecast from ${FORECAST_SOURCE}, turned into units with the same sum as the design. A forecast changes, and it cannot see the shade on one roof.`,
+    weather_from: via,
+    source: `A weather forecast from ${via}, turned into units with the same sum as the design. A forecast changes, and it cannot see the shade on one roof.`,
     next: `${design ? '' : 'No system is designed, so say "from each kilowatt of panels" with every number, never "your roof will make", and offer to work out their system from their bill. '}Answer the day they asked about in one short sentence, with its day name and units. Then name the best day ahead, and suggest running the heavy things (washing machine, pump, geyser) around midday that day. If rain is likely on the day they asked about, say so. The seven days are on the screen. Say once that it is a forecast.`,
   };
 }

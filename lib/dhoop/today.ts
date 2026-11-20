@@ -1,5 +1,6 @@
 import { appliancesSaid, askedCovered, bestHour, clockSaid, powerFrom, shareSaid, unitsFromHours, usualCovered } from './power';
 import { ensureSession, updateSession, type RoofNow } from './store';
+import { cloudsAt, noteFirstRefused, SECOND_SOURCE, skipFirst, todayOf } from './sky';
 
 /**
  * The roof at this moment: "what is it making right now, and can it run my AC?"
@@ -20,7 +21,7 @@ type Result = Record<string, unknown>;
 
 const kept = new Map<string, { at: number; got: Omit<RoofNow, 'key' | 'place' | 'asked' | 'fetchedAt'> }>();
 
-async function sunToday(lat: number, lon: number): Promise<Omit<RoofNow, 'key' | 'place' | 'asked' | 'fetchedAt'>> {
+async function fromFirstSource(lat: number, lon: number): Promise<Omit<RoofNow, 'key' | 'place' | 'asked' | 'fetchedAt'>> {
   const where = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   const had = kept.get(where);
   // "Right now" goes stale fast: ten minutes, which is finer than the service's own quarter of an hour.
@@ -52,6 +53,19 @@ async function sunToday(lat: number, lon: number): Promise<Omit<RoofNow, 'key' |
   }
 }
 
+/** Today from the usual source, or from the second one when the usual one will not answer. The second marks what it gives with `via`. */
+async function sunToday(lat: number, lon: number): Promise<Omit<RoofNow, 'key' | 'place' | 'asked' | 'fetchedAt'>> {
+  if (!skipFirst()) {
+    try {
+      return await fromFirstSource(lat, lon);
+    } catch (error) {
+      noteFirstRefused();
+      console.warn(`The usual weather source would not give today (${String(error)}); asking the second.`);
+    }
+  }
+  return { ...todayOf(await cloudsAt(lat, lon), lat, lon, Date.now()), via: SECOND_SOURCE };
+}
+
 const listed = (names: string[]) => (names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
 const clockOf = (hhmm?: string) => (hhmm && /^\d\d:\d\d$/.test(hhmm) ? clockSaid(Number(hhmm.slice(0, 2)), Number(hhmm.slice(3))) : undefined);
 const kilowatts = (kw: number) => (kw >= 1 ? `about ${Math.round(kw * 10) / 10} kilowatts` : `about ${Math.round(kw * 100) * 10} watts`);
@@ -63,7 +77,8 @@ export async function roofNow(sid: string, said: string): Promise<Result> {
   let got: Awaited<ReturnType<typeof sunToday>>;
   try {
     got = await sunToday(s.location.lat, s.location.lon);
-  } catch {
+  } catch (error) {
+    console.warn(`No weather source gave today: ${String(error)}`);
     return { ok: false, error: 'The weather could not be fetched just now.', next: 'Say so in one sentence and offer to try again in a moment. Do not guess.' };
   }
   const asked = appliancesSaid(said);
@@ -106,7 +121,8 @@ export async function roofNow(sid: string, said: string): Promise<Result> {
       : {}),
     today: `about ${unitsFromHours(kw, got.hours)} units in all${each}; the most between ${clockSaid(peak.hour - 1)} and ${clockSaid(peak.hour)}, ${kilowatts(peakKw)}${clockOf(got.sunrise) && clockOf(got.sunset) ? `; the sun is up from about ${clockOf(got.sunrise)} to ${clockOf(got.sunset)}` : ''}`,
     how_it_works: "What the panels make comes off the bill. What they make beyond the home's use goes to the grid and is credited by net metering, and at night the home draws from the grid as before.",
-    source: "Sunshine reaching the ground now and through today, from Open-Meteo (open-meteo.com), with the same share lost to heat and wiring as the design. Appliance figures are typical ratings: the label has the real one. It cannot see the shade on one roof.",
+    weather_from: got.via ?? 'Open-Meteo (open-meteo.com)',
+    source: `Sunshine reaching the ground now and through today, from ${got.via ?? 'Open-Meteo (open-meteo.com)'}, with the same share lost to heat and wiring as the design. Appliance figures are typical ratings: the label has the real one. It cannot see the shade on one roof.`,
     next: `${design ? '' : 'No system is designed, so say "from each kilowatt of panels" with every number and offer to work out their system from their bill. '}${asked.length ? 'Answer the appliance first: it runs, and say how much of it the sun is covering at this moment, then at the best hour today. ' : 'Say what it is making at this moment in one short sentence, then what that covers. '}Then the best hour today, briefly. The day is on the screen, hour by hour.`,
   };
 }

@@ -245,6 +245,7 @@ For the submission video, film step 1 on a real terrace as well.
 | Sunshine at a location | NASA POWER long-term averages (free, no key), with a national fallback |
 | Rate per unit | Worked out from the person's own bill (amount divided by units) |
 | This week's sunshine, day by day | Open-Meteo's weather forecast (free, no key): the day's sunshine reaching the ground, in megajoules a square metre, divided by 3.6 to give sun hours |
+| The same, when Open-Meteo will not answer | MET Norway's cloud forecast (api.met.no, free, no key) and arithmetic: where the sun stands, what a clear sky delivers (Haurwitz), and the share cloud takes (Kasten and Czeplak). An estimate, and the screen says so |
 | What the roof is making at this moment, and today hour by hour | Open-Meteo's current and hourly sunshine reaching the ground, in watts a square metre, with the design's own share lost to heat and wiring |
 | What an appliance draws (AC 1,500 W, geyser 2,000 W, fridge 150 W and so on) | Typical ratings, in `APPLIANCES` in `lib/dhoop/config.ts`. The label on the appliance has the real figure |
 | Panels making 0.8% less each year, in the 25-year view | The usual panel warranty of at least 80% of rated output after 25 years, taken as a straight line: its floor, so a cautious figure |
@@ -254,6 +255,7 @@ The installed price is an assumption (₹60,000 per kW, changeable) until an ins
 
 ## Honest limits
 
+- **The forecast on the hosted copy is an estimate.** Open-Meteo counts requests by address, and a free host shares its address, so the hosted copy is often refused and falls back to working the sunshine out from MET Norway's cloud forecast. Compared over six towns on 20 Nov 2026, the two differed by a sixth on a typical day and by far more on days of broken cloud. Sunrise and sunset agreed to two minutes. The screen names the source it used.
 - **"Right now" is the sky's figure, not a meter's.** It is worked out from the sunshine a weather model gives for the area in the last quarter of an hour. A real system's meter will differ, most of all under passing cloud or shade. The appliance figures are typical ratings, so "covers the AC" means an AC of the usual size.
 - **A forecast is a forecast.** The week ahead comes from a weather model for a square some kilometres across. It changes from hour to hour, and it knows nothing of a tree or a water tank beside one roof.
 - **The 25-year figure leaves things out, and says which.** Cleaning, a new inverter after ten years or so and the interest on a loan are not counted, so the true figure is somewhat lower. A yearly rise in the price of electricity is only ever the person's own "what if", held to ten percent; Dhoop does not forecast prices.
@@ -340,5 +342,5 @@ scripts/
 
 - Built on Agora's [agent-quickstart-nextjs](https://github.com/AgoraIO-Conversational-AI/agent-quickstart-nextjs) (MIT).
 - Building outlines from Google Open Buildings, Microsoft Building Footprints and OpenStreetMap contributors, as combined and published by VIDA on Source Cooperative.
-- Satellite imagery by Esri and its data providers. Place search by OpenStreetMap Nominatim. Sunshine data by NASA POWER. Weather forecast by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0).
+- Satellite imagery by Esri and its data providers. Place search by OpenStreetMap Nominatim. Sunshine data by NASA POWER. Weather forecast by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0). Cloud forecast by [MET Norway](https://api.met.no/) (CC BY 4.0).
 - Scheme facts from the National Portal for Rooftop Solar. Dhoop is not affiliated with the Government of India.

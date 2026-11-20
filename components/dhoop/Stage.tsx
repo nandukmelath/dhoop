@@ -481,7 +481,7 @@ function WeekCard({ week, kw, designed, tariff }: { week: SunWeek; kw: number; d
         </table>
       </details>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        {designed ? `Worked out for the ${kw} kW system, with the same sum as the design.` : 'No system is designed yet, so this is for one kilowatt of panels.'} The weather forecast is from Open-Meteo, fetched at{' '}
+        {designed ? `Worked out for the ${kw} kW system, with the same sum as the design.` : 'No system is designed yet, so this is for one kilowatt of panels.'} The weather forecast is from {week.via ?? 'Open-Meteo'}, fetched at{' '}
         {new Date(week.fetchedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}. A forecast changes, and it cannot see the shade on one roof.
       </p>
     </Card>
@@ -645,7 +645,7 @@ function NowCard({ now, kw, designed }: { now: RoofNow; kw: number; designed: bo
         </table>
       </details>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        {designed ? `Worked out for the ${kw} kW system, with the same share lost to heat and wiring as the design.` : 'No system is designed yet, so this is for one kilowatt of panels.'} Sunshine is from Open-Meteo, as of {time}. Appliance figures are typical ratings: the label has the real one.
+        {designed ? `Worked out for the ${kw} kW system, with the same share lost to heat and wiring as the design.` : 'No system is designed yet, so this is for one kilowatt of panels.'} Sunshine is from {now.via ?? 'Open-Meteo'}, as of {time}. Appliance figures are typical ratings: the label has the real one.
         Everything in the home runs at any hour, because it stays on the grid; the sun decides how much of it is paid for.
       </p>
     </Card>

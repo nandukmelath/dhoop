@@ -120,6 +120,8 @@ export interface SunWeek {
   /** A usual day's sun hours in this month at this place, when the long-term figures are known. */
   usualSunHours?: number;
   fetchedAt: number;
+  /** Set when the forecast came from the second source (see sky.ts) and not the usual one. */
+  via?: string;
 }
 
 /**
@@ -140,6 +142,8 @@ export interface RoofNow {
   /** Sunrise and sunset today, as clock times: "06:20", "17:50". */
   sunrise?: string;
   sunset?: string;
+  /** Set when the reading came from the second source (see sky.ts) and not the usual one. */
+  via?: string;
   /** The appliances the person asked about, by their keys in `APPLIANCES`. */
   asked?: string[];
   fetchedAt: number;

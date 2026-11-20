@@ -29,9 +29,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ si
   if (!tool) return NextResponse.json({ ok: false, error: 'The tour is out of step with the tools.' }, { status: 500 });
   try {
     beforeTool(sid, step.tool);
-    const result = await tool.run(sid, step.args);
+    let result = await tool.run(sid, step.args);
+    // An outside service that was slow to wake often answers the second time.
+    if (!result.ok && /could not be (reached|fetched)/.test(String(result.error ?? ''))) {
+      await new Promise((r) => setTimeout(r, 1200));
+      result = await tool.run(sid, step.args);
+    }
     if (result.ok) afterTool(sid);
-    return NextResponse.json({ ok: !!result.ok, did: result.ok ? step.did(result) : String(result.error ?? 'That step did not work just now.'), last: index === TOUR.length - 1 });
+    return NextResponse.json({ ok: !!result.ok, did: result.ok ? step.did(result) : String(result.error ?? 'That step did not work just now.'), last: index === TOUR.length - 1, ...(typeof result.weather_from === 'string' ? { weather_from: result.weather_from } : {}) });
   } catch (error) {
     console.error(`Tour step ${index} failed:`, error);
     return NextResponse.json({ ok: false, did: 'That step did not work just now.', last: index === TOUR.length - 1 });

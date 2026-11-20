@@ -20,6 +20,7 @@ import { layoutPanels, MOST_PANELS_DRAWN } from '../lib/dhoop/panels';
 import { PASSBOOK, voiceNote } from '../lib/dhoop/passbook';
 import { findCity, geocode, likeliestPlace, mapNameFor, pickNamed, sameName, type PlaceHit } from '../lib/dhoop/places';
 import { isTourSession, TOUR } from '../lib/dhoop/tour';
+import { clearSkyWatts, cloudAt, sunHeight, todayOf, underCloud, weekOf, type SkyPoint } from '../lib/dhoop/sky';
 import { FAILURE_LINES, GREETINGS, RECOVER_LINES, RESUME_LINES, RETURN_LINES, systemPrompt } from '../lib/dhoop/prompt';
 import { middleOf, neighbourIn, reshapeRing, shiftRing } from '../lib/dhoop/reshape';
 import { roofMark } from '../lib/dhoop/roofedit';
@@ -1309,4 +1310,51 @@ test('the tour and the venue: fixed steps of real tools, and the hall found by t
     assert.ok(findTool(step.tool), `the tour names a tool that does not exist: ${step.tool}`);
     assert.ok(step.says.length > 10 && step.hold >= 0 && step.hold <= 20);
   }
+});
+
+test('the second weather source: the sun by arithmetic, and cloud taking its share', () => {
+  const [lat, lon] = [12.97, 77.59]; // Bengaluru
+  const noon = Date.UTC(2026, 10, 21, 6, 36); // 12:06 pm in India, when the sun is highest there in late November
+  // Late November: the sun stands about 33 degrees south of overhead at noon, and is down at midnight.
+  assert.ok(Math.abs(sunHeight(noon, lat, lon) - Math.cos((33 * Math.PI) / 180)) < 0.02, String(sunHeight(noon, lat, lon)));
+  assert.ok(sunHeight(noon + 12 * 3_600_000, lat, lon) < 0);
+  // Overhead at the equator at an equinox noon.
+  assert.ok(sunHeight(Date.UTC(2026, 2, 20, 12, 7), 0, 0) > 0.995);
+  assert.equal(clearSkyWatts(-0.2), 0);
+  assert.ok(clearSkyWatts(1) > 1000 && clearSkyWatts(1) < 1100);
+  assert.equal(underCloud(800, 0), 800);
+  assert.equal(underCloud(800, 100), 200);
+  assert.equal(underCloud(800, 250), 200);
+
+  // Cloud between two forecast points is a straight line, and holds at the ends.
+  const points: SkyPoint[] = [{ at: noon, cloud: 0 }, { at: noon + 2 * 3_600_000, cloud: 100 }];
+  assert.equal(cloudAt(points, noon + 3_600_000), 50);
+  assert.equal(cloudAt(points, noon - 5 * 3_600_000), 0);
+  assert.equal(cloudAt(points, noon + 9 * 3_600_000), 100);
+  assert.equal(cloudAt([], noon), 0);
+
+  // A clear week in Bengaluru in November: between five and seven sun hours a day, dated in Indian time.
+  const justAfterMidnight = Date.UTC(2026, 10, 20, 19, 0); // 00:30 on the 21st in India
+  const clear = weekOf([], lat, lon, justAfterMidnight);
+  assert.equal(clear.length, 7);
+  assert.equal(clear[0].date, '2026-11-21');
+  assert.equal(clear[6].date, '2026-11-27');
+  for (const day of clear) assert.ok(day.mj / 3.6 > 5 && day.mj / 3.6 < 7, `${day.date} ${day.mj}`);
+  // The same week under a sky wholly covered keeps a quarter.
+  const grey = weekOf([{ at: 0, cloud: 100 }], lat, lon, justAfterMidnight);
+  assert.ok(Math.abs(grey[0].mj / clear[0].mj - 0.25) < 0.01);
+
+  // Today: 24 hours, dark at night, most around noon, the sun up from about twenty past six to ten to six.
+  const today = todayOf([], lat, lon, noon);
+  assert.equal(today.hours.length, 24);
+  assert.equal(today.at, '2026-11-21T12:06');
+  assert.equal(today.isDay, true);
+  assert.ok(today.hours[3] === 0 && today.hours[22] === 0);
+  assert.ok([12, 13].includes(today.hours.indexOf(Math.max(...today.hours))));
+  assert.ok(today.sunNow > 750 && today.sunNow < 950, String(today.sunNow));
+  assert.match(today.sunrise!, /^06:(1[5-9]|2[0-9])$/);
+  assert.match(today.sunset!, /^17:(4[5-9]|5[0-9])$/);
+  // The day's hours add up to the day's total, to within a twentieth.
+  const fromHours = today.hours.reduce((a, b) => a + b, 0) * 3600;
+  assert.ok(Math.abs(fromHours / 1e6 / weekOf([], lat, lon, noon)[0].mj - 1) < 0.05);
 });
