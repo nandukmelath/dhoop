@@ -558,6 +558,11 @@ export default function DhoopApp() {
             Start a new conversation
           </button>
         )}
+        <p className="mt-3 text-center text-sm">
+          <Link className="font-semibold underline decoration-2 underline-offset-4" href="/tour">
+            No microphone to hand? Watch it work in a minute
+          </Link>
+        </p>
         {error && (
           <p role="alert" className="mt-3 text-sm font-medium text-destructive">
             {error}

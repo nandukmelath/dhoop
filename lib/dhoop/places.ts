@@ -266,7 +266,21 @@ const RANK_OF: Record<string, number> = { house: 30, street: 26, locality: 24, d
  * Both are asked at once, because the first is sometimes slow and a voice conversation cannot
  * hold its breath: its answer is waited for a short while, then the second one's is taken.
  */
-export async function namedPlace(query: string, near?: { lat: number; lon: number }): Promise<NamedPlace | undefined> {
+/**
+ * Places people call by one name and the map files under another. The hackathon's own venue is
+ * the reason this exists: "Polaris School of Technology" found a college forty kilometres away,
+ * and "DivyaSree Technopark" a different campus of the same developer, because the map spells
+ * the campus "Divyashree". The name on the right is the one the map answers to.
+ */
+const SAID_AS: [RegExp, string][] = [[/polaris school of tech|divya ?s(h)?r(ee|i) ?techno ?park/i, 'Divyashree Technopark, Bengaluru']];
+
+/** The name to look a place up by: the map's own, where the spoken one is known to miss. */
+export function mapNameFor(query: string): string {
+  return SAID_AS.find(([said]) => said.test(query))?.[1] ?? query;
+}
+
+export async function namedPlace(spoken: string, near?: { lat: number; lon: number }): Promise<NamedPlace | undefined> {
+  const query = mapNameFor(spoken);
   const home = near && Number.isFinite(near.lat) && Number.isFinite(near.lon) ? near : undefined;
   const headers = { 'User-Agent': 'dhoop-solar-demo' };
   const key = `${query.trim().toLowerCase()}|${home ? `${home.lat.toFixed(1)},${home.lon.toFixed(1)}` : ''}`;

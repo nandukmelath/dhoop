@@ -1,7 +1,7 @@
 /**
  * End to end, without a call: every tool run the way the agent runs it, the session, the
  * passbook and its voice note in all six languages, every page, and the doors that must stay
- * shut. About fifty checks in under a minute. It starts no agent, so it uses no call minutes.
+ * shut. About seventy checks in under a minute. It starts no agent, so it uses no call minutes.
  *
  * Needs the app running in development (npm run dev): it calls the tools through the /dev
  * shortcut, which a production build closes. The voice notes ask Murf for a few hundred
@@ -103,8 +103,14 @@ const noKey = await post(`/api/tools/saveBill?sid=${sid}`, { monthly_units: 1, b
 check('a tool call without the secret is refused', noKey.status === 401);
 const unknown = await post(`/api/tools/notATool?sid=${sid}&dev=1`, {});
 check('an unknown tool is refused', unknown.status === 404);
+// The tour: a visitor with no microphone watches fixed steps run. It may run its own steps and nothing else.
+const tourSid = `tour-${Date.now().toString(36).slice(-8)}`;
+const tourStep = await post(`/api/tour/${tourSid}`, { step: 2 });
+check('a tour step runs a real tool with no call', tourStep.status === 200 && tourStep.json?.ok === true && typeof tourStep.json?.did === 'string', String(tourStep.json?.did ?? '').slice(0, 90));
+check('the tour refuses a session that is not its own', (await post(`/api/tour/${sid}`, { step: 2 })).status === 400);
+check('the tour refuses a step it does not have', (await post(`/api/tour/${tourSid}`, { step: 99 })).status === 400);
 // The other pages.
-for (const path of ['/', '/dev', '/installer', '/wall', '/join', '/api/status', `/api/session/${sid}`]) {
+for (const path of ['/', '/dev', '/installer', '/wall', '/join', '/tour', '/brand', '/brand/dhoop-social-1200x630.png', '/api/status', `/api/session/${sid}`]) {
   const res = await fetch(`${BASE}${path}`);
   check(`page ${path.replace(sid, '<session>')}`, res.status === 200, String(res.status));
 }

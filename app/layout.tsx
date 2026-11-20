@@ -20,13 +20,34 @@ export const viewport: Viewport = {
   themeColor: '#f5eedd',
 };
 
+/** Where this copy of Dhoop lives, so that a shared link shows its picture from the right address. */
+function siteUrl(): URL {
+  for (const address of [process.env.PUBLIC_BASE_URL, process.env.RENDER_EXTERNAL_URL]) {
+    try {
+      if (address) return new URL(address);
+    } catch {}
+  }
+  return new URL('https://dhoop.onrender.com');
+}
+
+const TITLE = 'Dhoop: solar for your roof, in your language';
+const ABOUT =
+  'A voice guide that finds your roof from space, reads your electricity bill, sizes a solar system, works out the government subsidy and finds registered installers near you, in six Indian languages. Built on Agora Conversational AI and Murf Falcon.';
+// The picture a chat or a social post shows beside the link. `npm run brand` makes it.
+const CARD = { url: '/brand/dhoop-social-1200x630.png', width: 1200, height: 630, alt: 'Dhoop: solar for your roof, in your language' };
+
 export const metadata: Metadata = {
-  title: 'Dhoop: solar for your roof, in your language',
-  description:
-    'A voice guide that reads your electricity bill, surveys your roof by camera, sizes a solar system, works out the government subsidy and gets installer quotes. Built on Agora Conversational AI and Murf Falcon.',
+  metadataBase: siteUrl(),
+  title: TITLE,
+  description: ABOUT,
+  applicationName: 'Dhoop',
+  manifest: '/site.webmanifest',
+  openGraph: { title: TITLE, description: ABOUT, url: '/', siteName: 'Dhoop', type: 'website', locale: 'en_IN', images: [CARD] },
+  twitter: { card: 'summary_large_image', title: TITLE, description: ABOUT, images: [CARD] },
   icons: {
     icon: [
-      { url: '/favicon.ico' },
+      { url: '/brand/dhoop-favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '48x48' },
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
     ],

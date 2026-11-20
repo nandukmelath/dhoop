@@ -18,7 +18,8 @@ import { conversationSoFar, hasMemory, turnsFromHistory } from '../lib/dhoop/mem
 import { hotwords, keyterms, MOST_HOTWORDS, SAFE_HOTWORDS } from '../lib/dhoop/hotwords';
 import { layoutPanels, MOST_PANELS_DRAWN } from '../lib/dhoop/panels';
 import { PASSBOOK, voiceNote } from '../lib/dhoop/passbook';
-import { findCity, geocode, likeliestPlace, pickNamed, sameName, type PlaceHit } from '../lib/dhoop/places';
+import { findCity, geocode, likeliestPlace, mapNameFor, pickNamed, sameName, type PlaceHit } from '../lib/dhoop/places';
+import { isTourSession, TOUR } from '../lib/dhoop/tour';
 import { FAILURE_LINES, GREETINGS, RECOVER_LINES, RESUME_LINES, RETURN_LINES, systemPrompt } from '../lib/dhoop/prompt';
 import { middleOf, neighbourIn, reshapeRing, shiftRing } from '../lib/dhoop/reshape';
 import { roofMark } from '../lib/dhoop/roofedit';
@@ -1293,4 +1294,19 @@ test('a booked visit becomes a real calendar entry, and no reminder is promised 
   const vague = (await findTool('bookVisit')!.run(sid, { installer: 'Sunrise Solar', day: 'sometime next month', time: 'whenever' })) as Record<string, unknown>;
   assert.equal(getSession(sid)!.booking!.at, undefined);
   assert.match(String(vague.no_calendar_entry), /Do NOT promise a reminder/);
+});
+
+test('the tour and the venue: fixed steps of real tools, and the hall found by the name people say', () => {
+  // The map knows the hackathon's building by its estate's name, not by the school's.
+  assert.equal(mapNameFor('Polaris School of Technology'), 'Divyashree Technopark, Bengaluru');
+  assert.equal(mapNameFor('the divyasree techno park'), 'Divyashree Technopark, Bengaluru');
+  assert.equal(mapNameFor('Vidhana Soudha'), 'Vidhana Soudha');
+  // Only a session the tour page made can be driven without a call, and only through its own steps.
+  assert.ok(isTourSession('tour-abc123'));
+  for (const not of ['abc123', 'tour-', 'tour-abc', 'tour-ABC123', 'tour-abc123!', 'e2e-tour-abc123']) assert.equal(isTourSession(not), false, not);
+  assert.equal(TOUR.length, 10);
+  for (const step of TOUR) {
+    assert.ok(findTool(step.tool), `the tour names a tool that does not exist: ${step.tool}`);
+    assert.ok(step.says.length > 10 && step.hold >= 0 && step.hold <= 20);
+  }
 });

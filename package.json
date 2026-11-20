@@ -21,7 +21,8 @@
     "film:reveal": "node scripts/film-reveal.mjs",
     "listen:test": "node scripts/listen-test.mjs",
     "demo": "node scripts/demo.mjs",
-    "e2e": "node scripts/e2e-tools.mjs"
+    "e2e": "node scripts/e2e-tools.mjs",
+    "brand": "node scripts/make-brand.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.39",

@@ -12,8 +12,10 @@ Built for **Build with Agora, Bengaluru 2026**, Track 5 (Voice AI for Bharat), o
 
 Open **https://dhoop.onrender.com**, allow the microphone and press **Start talking**. No quiet place to speak? Tap the prompts under the microphone, or type. Then try these, in any of the six languages:
 
+**No microphone, or one minute only?** Open **https://dhoop.onrender.com/tour**. Dhoop works through one household's plan by itself, with the same tools and the same live data as a call, and no call is made.
+
 1. "My bill is 3,200 rupees a month and I live in Bengaluru."
-2. "Show me the Vidhana Soudha in Bengaluru" (or allow location and say "Find my roof").
+2. "Show me the Polaris School of Technology", the roof this hackathon sits under. Or "Show me the Vidhana Soudha in Bengaluru", or allow location and say "Find my roof".
 3. "What should I install?" and then "Is it worth it in the long run?"
 4. "Can I get the subsidy?" and then "Who installs solar here?"
 5. "Explain it to my mother in Kannada."
@@ -26,7 +28,7 @@ Open **https://dhoop.onrender.com**, allow the microphone and press **Start talk
 | A whole journey | Before: it remembers earlier calls and where the home is. During: the conversation. Action: the system designed, quotes asked for and a visit booked, each after a clear yes. After: a passbook with a voice note, the subsidy application tracked stage by stage, and the visit in the person's calendar with a reminder. |
 | A working demonstration | It is deployed at the address above. `npm run e2e` checks every tool with no call. |
 
-The three-minute demo, word for word, is in [DEMO.md](DEMO.md).
+The three-minute demo, word for word, is in [DEMO.md](DEMO.md). What two days on Agora and Murf taught, with counts and how to see each thing again, is in [FIELD-NOTES.md](FIELD-NOTES.md). The logo is in [brand](brand/README.md).
 
 ## Why this exists
 
@@ -174,7 +176,7 @@ This plays the reveal on the test page in a headless copy of Chrome, checks each
 npm run e2e
 ```
 
-With the app running (`npm run dev`), this runs every tool the way the agent does, reads the session back, opens the passbook and its voice note in all six languages, loads every page, and tries the doors that must stay shut. About sixty checks in under a minute. It starts no agent, so it uses none of Agora's call minutes.
+With the app running (`npm run dev`), this runs every tool the way the agent does, reads the session back, opens the passbook and its voice note in all six languages, loads every page, and tries the doors that must stay shut. About seventy checks in under a minute. It starts no agent, so it uses none of Agora's call minutes.
 
 ### Check it with keys
 
