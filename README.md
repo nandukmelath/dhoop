@@ -1,8 +1,10 @@
 # Dhoop: solar for your roof, in your language
 
-Dhoop is a voice guide that takes a household from "can I get the solar subsidy?" to a system on the roof. You talk to it in English, Hindi, Kannada or Malayalam. It reads your electricity bill through the camera, finds your roof from space, sizes a system from NASA sunshine data, works out the government subsidy and the scheme's bank loan, checks what could hold up your application, keeps track of which of the portal's ten stages you are at, sends your survey to installers, and books the site visit. Everything it does appears on a big screen as it happens.
+Dhoop is a voice guide that takes a household from "can I get the solar subsidy?" to a system on the roof. You talk to it in English, Hindi, Kannada, Tamil, Telugu or Malayalam. It reads your electricity bill through the camera, finds your roof from space, sizes a system from NASA sunshine data, works out the government subsidy and the scheme's bank loan, checks what could hold up your application, keeps track of which of the portal's ten stages you are at, sends your survey to installers, and books the site visit. Everything it does appears on a big screen as it happens.
 
 Built for **Build with Agora, Bengaluru 2026**, Track 5 (Voice AI for Bharat), on **Agora Conversational AI** and **Murf Falcon**.
+
+**Try it live: https://dhoop.onrender.com** Open it in Chrome or Safari, allow the microphone, and press Start talking. It runs on a free server, so if it has been idle the first load can take about a minute.
 
 > "Dhoop" (धूप) means sunlight.
 
