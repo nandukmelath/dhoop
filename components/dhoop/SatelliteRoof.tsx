@@ -7,6 +7,7 @@ import { SQFT_PER_M2 } from '@/lib/dhoop/config';
 import { deepestImagery, IMAGERY_TILES, SAFE_ZOOM, SHARPEST_ZOOM, warmDive } from '@/lib/dhoop/imagery';
 import { layoutPanels } from '@/lib/dhoop/panels';
 import { polygonAreaM2, roofCapacity, type Design } from '@/lib/dhoop/solar';
+import { faultOf, locationHelp, type LocationFault } from '@/lib/dhoop/whereami';
 import type { Roof, SiteSearch, Street } from '@/lib/dhoop/store';
 
 /**
@@ -486,10 +487,26 @@ export default function SatelliteRoof({
     setBusy(true);
     setMessage('Asking this device where it is…');
     try {
-      const where = await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!navigator.geolocation) reject(new Error('no location on this device'));
-        else navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 });
-      });
+      // The asking is kept apart from what follows it, so that a refusal by the phone is not
+      // taken for a fault of the network, nor the other way about.
+      let where: GeolocationPosition;
+      try {
+        if (!navigator.geolocation) throw Object.assign(new Error('no location'), { fault: window.isSecureContext ? 'unsupported' : 'insecure' });
+        const ask = (options: PositionOptions) => new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, options));
+        try {
+          where = await ask({ enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 });
+        } catch (first) {
+          // Refused is refused. Too slow, or no fix: indoors a phone often has a rough position
+          // from Wi-Fi and masts long before it has an exact one, and a rough one finds the street.
+          if ((first as GeolocationPositionError)?.code === 1) throw first;
+          setMessage('Still looking: trying for a rougher fix…');
+          where = await ask({ enableHighAccuracy: false, timeout: 15_000, maximumAge: 300_000 });
+        }
+      } catch (refusal) {
+        const fault = (refusal as { fault?: LocationFault }).fault ?? faultOf((refusal as GeolocationPositionError)?.code);
+        setMessage(locationHelp(fault, navigator.userAgent));
+        return;
+      }
       await post({ type: 'device_location', lat: where.coords.latitude, lon: where.coords.longitude, accuracy: where.coords.accuracy });
       setMessage('Looking for your building…');
       const result = (await post({ type: 'roof_find' })) as { found?: boolean; error?: string } | null;
@@ -498,11 +515,22 @@ export default function SatelliteRoof({
         setMessage(result?.error ?? 'No building is mapped where this device is. Tap your building, or draw the corners of the roof.');
       }
     } catch {
-      setMessage('This device did not share its location. Search for your address above, then tap your building.');
+      setMessage('This device shared its location, but Dhoop could not look the place up. Check the internet connection and try again.');
     } finally {
       setBusy(false);
     }
   };
+
+  // The call asks for the device's location as it starts (DhoopApp). When the phone refuses
+  // then, the person is told here, where the map is, and not left wondering why nothing moved.
+  useEffect(() => {
+    const onFault = (e: Event) => {
+      const code = Number((e as CustomEvent<unknown>).detail);
+      if (code === 1) setMessage(locationHelp('refused', navigator.userAgent));
+    };
+    window.addEventListener('dhoop:location-fault', onFault);
+    return () => window.removeEventListener('dhoop:location-fault', onFault);
+  }, []);
 
   const areaM2 = polygonAreaM2(points);
   const cap = roofCapacity(areaM2, shadePct / 100);

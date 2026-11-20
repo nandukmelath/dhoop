@@ -101,7 +101,11 @@ function shareLiveLocation(channel: string, onUsed: (first: boolean) => void): {
           if (first) settle();
         });
     },
-    () => settle(),
+    (refusal) => {
+      settle();
+      // The map's card says why, with the steps to put it right (SatelliteRoof listens for this).
+      window.dispatchEvent(new CustomEvent('dhoop:location-fault', { detail: refusal.code }));
+    },
     // maximumAge 0: a live reading, not one the browser remembered from earlier.
     { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
   );

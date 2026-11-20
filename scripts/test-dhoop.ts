@@ -30,6 +30,7 @@ import { farmMoney, farmSize, gridOver, pickSites, rankPlaces, ringAround, wayFr
 import { streetTotals } from '../lib/dhoop/street';
 import { vendorsFor, VENDOR_DISTRICTS, VENDOR_LISTS, VENDOR_STATES } from '../lib/dhoop/vendors';
 import { inLakh, longRun } from '../lib/dhoop/longrun';
+import { deviceKind, faultOf, iphoneBrowser, locationHelp } from '../lib/dhoop/whereami';
 import { appliancesSaid, askedCovered, bestHour, clockSaid, powerFrom, shareSaid, unitsFromHours, usualCovered } from '../lib/dhoop/power';
 import { bestAhead, dayName, skyWord, sunHoursFromMj, unitsOn, weekOutlook } from '../lib/dhoop/outlook';
 import { designSystem, monthlyInstalment, polygonAreaM2, roofCapacity, standardSizeAtLeast, standardSizeAtMost, subsidyForKw, tariffFromBill, throughTheYear } from '../lib/dhoop/solar';
@@ -1227,4 +1228,33 @@ test('right now on the roof: sunshine becomes kilowatts, the best hour is found,
   const none = (await findTool('powerNow')!.run('now-no-place', { appliances: 'AC' })) as Record<string, unknown>;
   assert.equal(none.ok, false);
   assert.match(String(none.next), /setLocation/);
+});
+
+test('a device that will not say where it is gets the reason and the way round it, for the device in the hand', () => {
+  const chromeOnIphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1';
+  const safariOnIphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+  const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
+  const laptop = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  assert.equal(deviceKind(chromeOnIphone), 'iphone');
+  assert.equal(deviceKind(android), 'android');
+  assert.equal(deviceKind(laptop), 'computer');
+  assert.equal(iphoneBrowser(chromeOnIphone), 'Chrome');
+  assert.equal(iphoneBrowser(safariOnIphone), 'Safari Websites', 'the name the iPhone lists Safari under');
+  assert.equal(faultOf(1), 'refused');
+  assert.equal(faultOf(2), 'unavailable');
+  assert.equal(faultOf(3), 'slow');
+  assert.equal(faultOf(undefined), 'unavailable');
+  // Refused on an iPhone: the switch is in Settings, under the browser's own name, and the page is never asked until it is on.
+  const iphone = locationHelp('refused', chromeOnIphone);
+  assert.match(iphone, /Settings app, then Privacy & Security, then Location Services, then Chrome/);
+  assert.match(iphone, /While Using the App/);
+  assert.match(locationHelp('refused', safariOnIphone), /Location Services, then Safari Websites/);
+  assert.match(locationHelp('refused', android), /left of the address bar, then Permissions, then Location/);
+  assert.match(locationHelp('refused', laptop), /Click the icon at the left of the address bar/);
+  // Too slow or no fix is not a refusal, and is not answered with a trip to Settings.
+  assert.doesNotMatch(locationHelp('slow', chromeOnIphone), /Settings/);
+  assert.match(locationHelp('slow', chromeOnIphone), /near a window/);
+  assert.match(locationHelp('unavailable', laptop), /Wi-Fi/);
+  // Every answer leaves the person a way on that needs no location at all.
+  for (const fault of ['refused', 'unavailable', 'slow', 'unsupported', 'insecure'] as const) for (const ua of [chromeOnIphone, android, laptop]) assert.match(locationHelp(fault, ua), /earch for your address above/);
 });
