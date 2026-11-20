@@ -1,0 +1,337 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Dhoop's look: printed paper, ink, and marigold. Hard edges and hard shadows, like a bill or
+ * a passbook, not glass. One theme only, the daylight one.
+ */
+:root {
+  color-scheme: light;
+
+  /* Paper and ink */
+  --background:       42 45% 93%;
+  --surface:          42 40% 90%;
+  --surface-elevated: 42 36% 87%;
+  --card:             44 62% 97%;
+  --card-foreground:  28 22% 10%;
+  --popover:          44 62% 97%;
+  --popover-foreground: 28 22% 10%;
+  --muted:            42 34% 88%;
+  --border:           34 22% 72%;
+  --input:            34 22% 62%;
+  --foreground:       28 22% 10%;
+  --muted-foreground: 30 10% 34%;
+
+  /* Marigold: the sun, and every main action */
+  --primary:            38 96% 52%;
+  --primary-foreground: 28 40% 9%;
+  /* Chart marks: the marigold's own hue, three steps deeper, so a thin bar or a line reads on paper (3:1 and more against the card). */
+  --chart:              34 96% 38%;
+  --secondary:            42 34% 88%;
+  --secondary-foreground: 28 22% 10%;
+  --accent:            42 88% 82%;
+  --accent-foreground: 28 30% 12%;
+
+  /* Brick: ending a call, and faults */
+  --destructive:            8 68% 42%;
+  --destructive-foreground: 44 62% 97%;
+
+  --ring: 28 22% 10%;
+  --radius: 0.375rem;
+
+  /* Dhoop's own names for its colours */
+  --sun:   38 96% 52%;
+  --clay:  12 66% 42%;
+  --leaf:  150 42% 28%;
+  --night: 222 44% 14%;
+
+  --chart-1: 38 96% 52%;
+  --chart-2: 12 66% 42%;
+  --chart-3: 150 42% 28%;
+  --chart-4: 222 44% 14%;
+  --chart-5: 30 10% 34%;
+
+  --sidebar-background:         44 62% 97%;
+  --sidebar-foreground:         28 22% 10%;
+  --sidebar-primary:            38 96% 52%;
+  --sidebar-primary-foreground: 28 40% 9%;
+  --sidebar-accent:             42 34% 88%;
+  --sidebar-accent-foreground:  28 22% 10%;
+  --sidebar-border:             34 22% 72%;
+  --sidebar-ring:               28 22% 10%;
+
+  /* The microphone button's level bars: marigold to brick */
+  --viz-stop-1: 38 96% 52%;
+  --viz-stop-2: 24 90% 52%;
+  --viz-stop-3: 12 66% 42%;
+
+  /* One family for four scripts, so Kannada sits beside English as an equal. Set in app/layout.tsx. */
+  --font-sans: var(--font-latin), var(--font-deva), var(--font-knda), var(--font-mlym), var(--font-taml), var(--font-telu), system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+  /* The faint dot of cheap printed paper. */
+  background-image: radial-gradient(hsl(var(--foreground) / 0.05) 0.6px, transparent 0.75px);
+  background-size: 5px 5px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  /* Headlines: the family's narrow, heavy cut. */
+  .display {
+    font-stretch: 82%;
+    font-weight: 700;
+    letter-spacing: -0.012em;
+    line-height: 1.02;
+  }
+  .label-caps {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  /* The main button: marigold, ink edge, a shadow you could cut yourself on. It sinks when pressed. */
+  .btn-sun,
+  .btn-plain {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 2px solid hsl(var(--foreground));
+    border-radius: var(--radius);
+    font-weight: 700;
+    box-shadow: 4px 4px 0 0 hsl(var(--foreground));
+    transition: transform 80ms ease, box-shadow 80ms ease;
+  }
+  .btn-sun {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  .btn-plain {
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground));
+  }
+  .btn-sun:hover:not(:disabled),
+  .btn-plain:hover:not(:disabled) {
+    transform: translate(1px, 1px);
+    box-shadow: 3px 3px 0 0 hsl(var(--foreground));
+  }
+  .btn-sun:active:not(:disabled),
+  .btn-plain:active:not(:disabled) {
+    transform: translate(4px, 4px);
+    box-shadow: 0 0 0 0 hsl(var(--foreground));
+  }
+  .btn-sun:disabled,
+  .btn-plain:disabled {
+    opacity: 0.6;
+  }
+  /* A sheet of the passbook: card paper, ink edge, hard shadow. */
+  .slab {
+    border: 2px solid hsl(var(--foreground));
+    border-radius: var(--radius);
+    background: hsl(var(--card));
+    box-shadow: 4px 4px 0 0 hsl(var(--foreground));
+  }
+  /* A rubber stamp, a little crooked. */
+  .stamp {
+    display: inline-block;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: hsl(var(--clay));
+    transform: rotate(-2deg);
+    white-space: nowrap;
+  }
+  /* The dotted line between an entry and its figure, as in a ledger. */
+  .leader {
+    flex: 1;
+    min-width: 1rem;
+    border-bottom: 2px dotted hsl(var(--foreground) / 0.3);
+    transform: translateY(-0.3em);
+  }
+}
+
+/* --- The sun: Dhoop's mark, and how it shows that it is listening, thinking or speaking --- */
+.sun-ray,
+.sun-disc {
+  fill: hsl(var(--primary));
+  stroke: hsl(var(--foreground));
+  stroke-width: 3;
+}
+.sun-ray,
+.sun-rays,
+.sun-disc {
+  transform-box: fill-box;
+}
+.sun-ray {
+  transform-origin: 50% 100%;
+}
+.sun-rays,
+.sun-disc {
+  transform-origin: center;
+}
+@keyframes sun-ray {
+  0%, 100% { transform: scaleY(0.62); }
+  50% { transform: scaleY(1.22); }
+}
+@keyframes sun-turn {
+  to { transform: rotate(360deg); }
+}
+@keyframes sun-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.sun-speaking .sun-ray { animation: sun-ray 520ms ease-in-out infinite; }
+.sun-thinking .sun-rays { animation: sun-turn 2.6s linear infinite; }
+.sun-listening .sun-disc { animation: sun-breathe 1.5s ease-in-out infinite; }
+.sun-off .sun-ray,
+.sun-off .sun-disc { fill: hsl(var(--muted)); }
+@media (prefers-reduced-motion: reduce) {
+  .sun-ray, .sun-rays, .sun-disc { animation: none !important; }
+}
+
+/* --- Entry animations --- */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-up-d1 { animation-delay: 60ms; }
+.animate-fade-up-d2 { animation-delay: 120ms; }
+.animate-fade-up-d3 { animation-delay: 180ms; }
+
+/* --- MicButtonWithVisualizer: force a true circle ---
+   The parent flex can stretch the <button> unevenly. */
+.conversation-mic-host {
+  flex-shrink: 0;
+}
+.conversation-mic-host > button {
+  aspect-ratio: 1 / 1;
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
+  min-height: 3rem;
+  max-width: 3rem;
+  max-height: 3rem;
+  border-radius: 9999px;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: visible; /* Web Audio bar visualizer in bottom band; avoid clipping */
+}
+@media (min-width: 640px) {
+  .conversation-mic-host > button {
+    width: 3.5rem;
+    height: 3.5rem;
+    min-width: 3.5rem;
+    min-height: 3.5rem;
+    max-width: 3.5rem;
+    max-height: 3.5rem;
+  }
+}
+
+/*
+ * The roof reveal on the satellite view (components/dhoop/SatelliteRoof.tsx).
+ * Each panel drops into place; the delay that staggers them is set per panel in the component.
+ */
+@keyframes dhoop-panel-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(1.3);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.leaflet-container path.dhoop-panel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dhoop-panel-drop 460ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  transition:
+    fill-opacity 500ms ease,
+    stroke 500ms ease,
+    stroke-opacity 500ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-container path.dhoop-panel {
+    animation: none;
+  }
+}
+
+/* A scene of the solar story coming on. */
+@keyframes story-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.story-in {
+  animation: story-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-in {
+    animation: none;
+  }
+}
+
+/* The neighbourhood's roofs light up one after another, outwards from the home: a flash of
+   sunlight that settles into the blue of panels. Colour and opacity only, which a phone can
+   do for five hundred roofs at once; a brightness filter on each made it stutter. */
+@keyframes dhoop-roof-light {
+  from {
+    opacity: 0;
+    fill: #fde68a;
+  }
+  45% {
+    opacity: 1;
+    fill: #fde68a;
+  }
+  to {
+    opacity: 1;
+    fill: #1d4ed8;
+  }
+}
+
+.leaflet-container path.dhoop-roof-lit {
+  animation: dhoop-roof-light 520ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-container path.dhoop-roof-lit {
+    animation: none;
+  }
+}

@@ -1,0 +1,37 @@
+# Dhoop on Render: one always-on web service, the plain Node way (npm ci, next build, next start).
+#
+#   render.com -> New -> Blueprint -> choose this repository.
+#
+# Render asks for the three values marked "sync: false" and makes up the tool secret itself.
+# The app's public address needs no setting: Render tells the app what it is, and the app
+# gives that to Agora so that Agora can reach the tools.
+#
+# One instance only. Conversations are kept in the server's memory, so two instances would
+# each know half of every conversation.
+services:
+  - type: web
+    name: dhoop
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/status
+    envVars:
+      # The version the app was built and tested on.
+      - key: NODE_VERSION
+        value: 22.23.4
+      # From the Agora console: the project's App ID and its primary certificate.
+      - key: NEXT_PUBLIC_AGORA_APP_ID
+        sync: false
+      - key: NEXT_AGORA_APP_CERTIFICATE
+        sync: false
+      # From Murf: the API key for the Falcon voice.
+      - key: MURF_API_KEY
+        sync: false
+      # What Agora must show to call the tools. Any long random value.
+      - key: DHOOP_TOOL_SECRET
+        generateValue: true
+      # A free server sleeps after 15 idle minutes. This has it visit itself every ten.
+      - key: DHOOP_KEEP_AWAKE
+        value: "1"
