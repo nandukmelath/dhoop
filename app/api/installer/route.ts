@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SQFT_PER_M2 } from '@/lib/dhoop/config';
+import { leadFor, townOf } from '@/lib/dhoop/lead';
 import { addQuote } from '@/lib/dhoop/quotes';
-import { surveysForInstallers } from '@/lib/dhoop/store';
+import { sessionsDeciding, surveysForInstallers } from '@/lib/dhoop/store';
 
 /** The installers' inbox: surveys waiting for a quote (GET) and sending one back (POST). */
 
 export async function GET() {
-  const surveys = surveysForInstallers().map((s) => ({
+  const surveys = surveysForInstallers()
+    .map((s) => ({
+      // How likely this household is to go ahead, and why: what an installer pays for.
+      lead: leadFor(s),
+      orderValue: s.design?.grossCost ?? null,
     sid: s.id,
     surveyId: s.survey!.id,
     homeowner: s.survey!.homeowner,
@@ -20,8 +25,16 @@ export async function GET() {
     panels: s.design?.panels ?? null,
     quotes: s.quotes.map((q) => ({ installer: q.installer, price: q.price, days: q.days })),
     booked: s.booking ?? null,
-  }));
-  return NextResponse.json({ surveys });
+    }))
+    // The likeliest to go ahead come first.
+    .sort((a, b) => b.lead.score - a.lead.score);
+  // Households still deciding have not agreed to be passed on. Only a town, a size and the
+  // rating leave here: no name, no bill, no roof and nothing that leads back to the conversation.
+  const deciding = sessionsDeciding().map((s) => {
+    const lead = leadFor(s);
+    return { tier: lead.tier, score: lead.score, town: townOf(s.location?.label), kw: s.design?.kw ?? null };
+  });
+  return NextResponse.json({ surveys, deciding });
 }
 
 export async function POST(request: NextRequest) {

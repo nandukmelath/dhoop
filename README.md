@@ -82,6 +82,7 @@ A person can interrupt at any point, switch language mid-conversation, and the c
 - **Type instead of talk.** A box under the microphone sends typed text to the agent, for a loud hall or a blocked microphone.
 - **Tap to say.** A row marked "Try" under the microphone holds nine things to say, in the order of a conversation: the bill, find my roof, add to the roof, the next building, undo, the whole neighbourhood, a landmark, the subsidy, the loan. A tap sends the words as if they had been spoken. It shows a newcomer what Dhoop can do, and it lets every part be shown in a hall too loud to be heard in. The words are in English; Dhoop answers in the language of the call.
 - **Installer inbox** (`/installer`). Installers see incoming surveys and send quotes. When one arrives the agent says so without being asked.
+- **Leads rated for installers.** An installer's costliest problem is telling a buyer from a looker, and a conversation with Dhoop shows which is which. Every conversation is rated high, medium or low intent from what the household did and asked: a visit booked, quotes asked for, an application on the portal, the bill, the roof, a designed system, the four subsidy conditions, the loan, the vendors. The inbox puts the likeliest buyers first, each with its reasons, its points, the order value and what to do next. Households still deciding are counted by town and size, with nothing that names them, because they have not agreed to be passed on. It is a plain sum of points an installer can read (`lib/dhoop/lead.ts`), and it is what Dhoop could charge for: a surveyed lead whose intent is known.
 - **Hall map** (`/wall` and `/join`). Everyone in a room scans a code, taps in their city and bill, and one shared map and running totals fill up. It uses no voice minutes.
 - **Test page** (`/dev`). Runs every tool without voice, so the screens can be checked before any keys are set.
 
@@ -285,6 +286,7 @@ The installed price is an assumption (₹60,000 per kW, changeable) until an ins
 - **The official portal has its own assistant and calculator.** Dhoop differs by working by voice in the household's language, reading the bill and the roof by camera, and getting installer quotes.
 - **Hindi, Kannada, Tamil, Telugu and Malayalam wording** was written without a native-speaker review.
 - **Listening in those five languages** was checked with synthetic speech (a Murf voice played into a call in place of a microphone), which each time came back transcribed and answered. It has not been tried with many real voices or accents.
+- **The lead rating is a first judgement.** Its points were set by reasoning about what separates a buyer from a looker. No sales exist yet to check them against, and they should be set again from real outcomes. How many questions a person asked is counted from what Dhoop was asked to do, not from every sentence.
 - **Installers.** Quotes come from whoever opens `/installer`. With `DHOOP_SAMPLE_QUOTES=1`, two quotes labelled as samples arrive on their own for solo runs.
 - **Free tier.** Agora's free allowance is 300 agent-minutes in total. The hall map uses none.
 

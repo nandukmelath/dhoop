@@ -1,10 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LEAD_POINTS, LEAD_TIERS, type Lead, type Tier } from '@/lib/dhoop/lead';
 
 const inr = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
 
+/** How each rating is shown. The words carry it; the colour only helps. */
+const TIER: Record<Tier, { label: string; cls: string }> = {
+  high: { label: 'High intent', cls: 'border-emerald-700 bg-emerald-100 text-emerald-950' },
+  medium: { label: 'Medium intent', cls: 'border-amber-600 bg-amber-100 text-amber-950' },
+  low: { label: 'Low intent', cls: 'border-border bg-muted text-foreground' },
+};
+
+/** A household still deciding: as much as may be shown of one that was not passed on. */
+interface Deciding {
+  tier: Tier;
+  score: number;
+  town: string;
+  kw: number | null;
+}
+
 interface Survey {
+  lead?: Lead;
+  orderValue?: number | null;
   sid: string;
   surveyId: string;
   homeowner: string;
@@ -23,6 +41,7 @@ interface Survey {
 /** What an installer sees: surveys that households have sent, and a form to quote on each. */
 export default function InstallerPage() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [deciding, setDeciding] = useState<Deciding[]>([]);
   const [company, setCompany] = useState('');
 
   useEffect(() => {
@@ -30,7 +49,10 @@ export default function InstallerPage() {
     const load = () =>
       fetch('/api/installer', { cache: 'no-store' })
         .then((r) => r.json())
-        .then((d) => setSurveys(d.surveys ?? []))
+        .then((d) => {
+          setSurveys(d.surveys ?? []);
+          setDeciding(d.deciding ?? []);
+        })
         .catch(() => {});
     void load();
     const id = setInterval(load, 2000);
@@ -41,7 +63,15 @@ export default function InstallerPage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-5 bg-background px-4 py-8 text-foreground">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Installer inbox</h1>
-        <p className="text-sm text-muted-foreground">Roof surveys from households, ready to quote. New ones appear by themselves.</p>
+        <p className="text-sm text-muted-foreground">Roof surveys from households, ready to quote, with the likeliest to go ahead first. New ones appear by themselves.</p>
+        <details className="mt-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium text-foreground">How a lead is rated</summary>
+          <p className="mt-1">
+            Dhoop adds up points for what the household did and asked in its conversation. {LEAD_TIERS.high} or more is high intent, {LEAD_TIERS.medium} to {LEAD_TIERS.high - 1} is medium, less is low. A visit booked: {LEAD_POINTS.visitBooked}. Feasibility approved on the
+            portal: {LEAD_POINTS.feasibilityApproved}. Quotes asked for: {LEAD_POINTS.quotesAsked}. Applied on the portal: {LEAD_POINTS.applied}, or registered: {LEAD_POINTS.registered}. The bill, the roof and a designed system: {LEAD_POINTS.bill} each. All four subsidy conditions met:{' '}
+            {LEAD_POINTS.conditionsMet}. The loan and the vendors asked about: {LEAD_POINTS.loan} each. Smaller signs make up the rest. The points are a first judgement and have not been checked against real sales.
+          </p>
+        </details>
       </div>
       <label className="flex flex-col gap-1 text-sm font-medium">
         Your company name
@@ -60,6 +90,28 @@ export default function InstallerPage() {
         <p className="rounded-lg border border-border p-4 text-sm text-muted-foreground">No surveys yet. They arrive when a household asks Dhoop to get quotes.</p>
       ) : (
         surveys.map((s) => <SurveyCard key={s.surveyId} s={s} company={company} />)
+      )}
+
+      {deciding.length > 0 && (
+        <section className="rounded-lg border border-border p-4">
+          <h2 className="text-base font-semibold">
+            Still deciding: {deciding.length} more {deciding.length === 1 ? 'household' : 'households'}
+          </h2>
+          <p className="text-xs text-muted-foreground">They have not asked for quotes, so Dhoop has not passed them on. You see a town, a size and the rating, and nothing that names them.</p>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+            {deciding.map((d, i) => (
+              <li key={i} className="flex flex-wrap items-baseline gap-2">
+                <span className={`rounded border px-1.5 text-xs font-bold ${TIER[d.tier].cls}`}>
+                  {TIER[d.tier].label} · {d.score}
+                </span>
+                <span>
+                  {d.town}
+                  {d.kw ? `, ${d.kw} kW` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );
@@ -102,6 +154,23 @@ function SurveyCard({ s, company }: { s: Survey; company: string }) {
         </h2>
         <span className="text-xs text-muted-foreground">{new Date(s.sentAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
+      {s.lead && (
+        <div className={`mb-3 rounded-md border-2 px-3 py-2 ${TIER[s.lead.tier].cls}`}>
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm font-bold">
+            <span>
+              {TIER[s.lead.tier].label} · {s.lead.score} of 100
+            </span>
+            <span className="font-medium">{s.lead.next}</span>
+          </p>
+          <ul className="mt-1 list-disc pl-5 text-xs">
+            {s.lead.reasons.slice(0, 4).map((r) => (
+              <li key={r.text}>
+                {r.text} <span className="opacity-70">+{r.points}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
         <Item k="System wanted" v={s.kw ? `${s.kw} kW, ${s.panels} panels` : 'Not sized'} />
         <Item k="Use a month" v={s.monthlyUnits ? `${s.monthlyUnits} units` : 'Unknown'} />
@@ -109,6 +178,7 @@ function SurveyCard({ s, company }: { s: Survey; company: string }) {
         <Item k="Shade" v={s.shadePercent !== null ? `${s.shadePercent}%` : 'Unknown'} />
         <Item k="Measured by" v={s.roofMeasuredBy === 'model' ? 'Table-top model' : s.roofMeasuredBy === 'satellite' ? 'Satellite view' : s.roofMeasuredBy === 'found' ? 'Building outline from satellite data' : s.roofMeasuredBy === 'spoken' ? 'Told by voice' : 'Not measured'} />
         <Item k="Quotes so far" v={String(s.quotes.length)} />
+        <Item k="Order value" v={s.orderValue ? `about ${inr(s.orderValue)}` : 'Not sized'} />
       </dl>
       {s.booked ? (
         <p className="mt-3 rounded-md bg-emerald-100 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100">

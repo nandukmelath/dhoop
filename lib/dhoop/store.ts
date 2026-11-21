@@ -427,6 +427,19 @@ export function surveysForInstallers(): Session[] {
     .slice(0, 20);
 }
 
+/**
+ * Conversations of the last day that did something and have not sent a survey, newest first.
+ * For telling installers how many households are still deciding. They have not agreed to be
+ * passed on, so whoever uses this must let nothing out that could name them. The tour's own
+ * sessions are left out: nobody is behind them.
+ */
+export function sessionsDeciding(now: number = Date.now()): Session[] {
+  return Object.values(db().sessions)
+    .filter((s) => !s.survey && !s.id.startsWith('tour-') && s.log.length > 0 && now - s.updatedAt < 24 * 3_600_000)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 30);
+}
+
 export function addHallEntry(e: Omit<HallEntry, 'id' | 'at'>): HallEntry {
   const entry: HallEntry = { ...e, id: newId('h'), at: Date.now() };
   const d = db();

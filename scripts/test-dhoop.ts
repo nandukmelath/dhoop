@@ -38,7 +38,8 @@ import { appliancesSaid, askedCovered, bestHour, clockSaid, powerFrom, shareSaid
 import { bestAhead, dayName, skyWord, sunHoursFromMj, unitsOn, weekOutlook } from '../lib/dhoop/outlook';
 import { designSystem, monthlyInstalment, polygonAreaM2, roofCapacity, standardSizeAtLeast, standardSizeAtMost, subsidyForKw, tariffFromBill, throughTheYear } from '../lib/dhoop/solar';
 import { eligibilityVerdict, SUBSIDY_STEPS } from '../lib/dhoop/steps';
-import { ensureSession, getSession, MAX_TURNS, rememberTurns, resetStore, sessionOfAgent, updateSession } from '../lib/dhoop/store';
+import { ensureSession, getSession, MAX_TURNS, rememberTurns, resetStore, sessionOfAgent, sessionsDeciding, updateSession } from '../lib/dhoop/store';
+import { leadFor, townOf } from '../lib/dhoop/lead';
 import { agoraTools, beforeTool, findTool, sessionBrief, TOOLS, languageSaid } from '../lib/dhoop/tools';
 
 test('subsidy follows the official slabs', () => {
@@ -1357,4 +1358,39 @@ test('the second weather source: the sun by arithmetic, and cloud taking its sha
   // The day's hours add up to the day's total, to within a twentieth.
   const fromHours = today.hours.reduce((a, b) => a + b, 0) * 3600;
   assert.ok(Math.abs(fromHours / 1e6 / weekOf([], lat, lon, noon)[0].mj - 1) < 0.05);
+});
+
+test('a lead is rated by what the household did, and a looker stays low', () => {
+  resetStore();
+  // Someone looking around: two questions, no bill and no roof.
+  updateSession('lead-looker', () => {}, { kind: 'comparePlaces', text: 'Compared two towns' });
+  const looker = updateSession('lead-looker', () => {}, { kind: 'showNeighbourhood', text: 'Looked at the neighbourhood' });
+  assert.equal(leadFor(looker).tier, 'low');
+  // A household with its bill, its roof and a system: worth a quote, not yet a buyer.
+  const ready = updateSession('lead-home', (s) => {
+    s.bill = { monthlyUnits: 300, amount: 2400, tariff: 8, source: 'spoken' };
+    s.roof = { areaM2: 60, shadeFraction: 0.1, capacityKw: 5, panelsFit: 9, source: 'found', foundBy: 'device' } as typeof s.roof;
+    s.design = designSystem({ monthlyUnits: 300, billAmount: 2400, sunHours: 5.2 });
+  }, { kind: 'designSolar', text: 'Designed a system' });
+  assert.equal(leadFor(ready).tier, 'medium');
+  // Both are still deciding, and neither has been passed on.
+  assert.equal(sessionsDeciding().length, 2);
+  // The same household asks for quotes and books a visit.
+  const buyer = updateSession('lead-home', (s) => {
+    s.survey = { id: 'sv1', homeowner: 'A household', sentAt: 2, kw: 2.5 };
+    s.booking = { id: 'b1', installer: 'An installer', day: 'Monday', time: '10 AM' };
+  });
+  const lead = leadFor(buyer);
+  assert.equal(lead.tier, 'high');
+  assert.ok(lead.score <= 100);
+  assert.match(lead.reasons[0].text, /^Booked a site visit/);
+  assert.equal(sessionsDeciding().length, 1);
+  // A household that has already chosen its vendor on the portal is nobody's lead.
+  const taken = updateSession('lead-home', (s) => {
+    s.application = { stagesDone: 4, updatedAt: 3 };
+  });
+  assert.equal(leadFor(taken).tier, 'low');
+  assert.equal(townOf('Kundalahalli, Bengaluru'), 'Bengaluru');
+  assert.equal(townOf(undefined), 'Place not given');
+  resetStore();
 });
