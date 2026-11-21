@@ -382,15 +382,22 @@ try {
     const trouble = page.split('\n').filter((l) => /error|could not|cannot|can't|failed|denied|blocked|not set|missing/i.test(l)).join(' | ');
     throw new Error(`the agent did not speak. The page says: ${trouble || page.replace(/\s+/g, ' ').slice(-300)}`);
   }
+  // The space bar, as a person presses it. A short tap switches the one microphone button; held down, the microphone stays on while it is held.
+  const key = (type) => send('Input.dispatchKeyEvent', { type, code: 'Space', key: ' ', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+  const tap = async () => {
+    await key('keyDown');
+    await sleep(120);
+    await key('keyUp');
+    await sleep(700);
+  };
   if (setup.includes('!shut')) {
-    // Hold-to-talk switched on and never held: nothing at all should be heard.
-    await press('Loud room');
+    // The microphone turned off and left off: nothing at all should be heard.
+    await tap();
     await sleep((seconds - LEAD_S + 14) * 1000);
   } else if (setup.includes('!hold')) {
-    // Work the hold-to-talk switch as a person would: the space bar goes down just before each sentence and up just after.
-    await press('Loud room');
+    // Work the button as a person would in a loud hall: off to begin with, then the space bar down just before each sentence and up just after.
+    await tap();
     const opened = await inPage(`window.__micOpenedAt`);
-    const key = (type) => send('Input.dispatchKeyEvent', { type, code: 'Space', key: ' ', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
     for (const { from, to } of spoken) {
       await sleep(Math.max(0, opened + (from - 0.4) * 1000 - Date.now()));
       await key('keyDown');

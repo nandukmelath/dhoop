@@ -142,7 +142,6 @@ export default function ConversationComponent({
     listeningFailed.current = onListeningFailed;
   });
   const remoteUsers = useRemoteUsers();
-  const [isEnabled, setIsEnabled] = useState(true);
   const [isAgentConnected, setIsAgentConnected] = useState(false);
   const [isConnectionDetailsOpen, setIsConnectionDetailsOpen] = useState(false);
 
@@ -551,25 +550,50 @@ export default function ConversationComponent({
    * If we also unpublish in the toggle, usePublish and the button fight each other
    * and break the MicButtonWithVisualizer Web Audio graph.
    */
-  // Loud room: the microphone stays shut except while the space bar or the button is held.
-  // The neighbours are then not taken for the caller, and cannot interrupt Dhoop.
-  const [holdToTalk, setHoldToTalk] = useState(() => {
+  // One button for the microphone, pressed with the cursor or the space bar. On, Dhoop hears the
+  // room. Off, it hears nothing, so in a loud hall the neighbours are not taken for the caller
+  // and cannot interrupt. A short press switches it; holding it down keeps it on for as long as
+  // it is held. There used to be a tick-box and a second button for this, and in the hall on
+  // 21 Nov 2026 that was one control too many.
+  const [micOpen, setMicOpen] = useState(() => {
     try {
-      return typeof window !== 'undefined' && window.localStorage.getItem('dhoop.holdToTalk') === '1';
+      if (typeof window === 'undefined') return true;
+      const kept = window.localStorage.getItem('dhoop.micOpen');
+      return kept === null ? window.localStorage.getItem('dhoop.holdToTalk') !== '1' : kept !== '0';
     } catch {
-      return false;
+      return true;
     }
   });
-  const [holding, setHolding] = useState(false);
-  const letGoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const hold = useCallback(() => {
-    clearTimeout(letGoTimer.current);
-    setHolding(true);
+  const micOpenNow = useRef(micOpen);
+  micOpenNow.current = micOpen;
+  const pressed = useRef<{ at: number; wasOpen: boolean } | null>(null);
+  const shutTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const micDown = useCallback(() => {
+    if (pressed.current) return;
+    clearTimeout(shutTimer.current);
+    pressed.current = { at: performance.now(), wasOpen: micOpenNow.current };
+    // It comes on as the button goes down, so the first word is not lost.
+    if (!micOpenNow.current) setMicOpen(true);
   }, []);
-  // The microphone stays open a moment after letting go, or the last syllable is cut off.
-  const letGo = useCallback(() => {
-    clearTimeout(letGoTimer.current);
-    letGoTimer.current = setTimeout(() => setHolding(false), 450);
+  const micUp = useCallback(() => {
+    const press = pressed.current;
+    if (!press) return;
+    pressed.current = null;
+    const keep = (open: boolean) => {
+      try {
+        window.localStorage.setItem('dhoop.micOpen', open ? '1' : '0');
+      } catch {
+        // The choice lasts for this call only.
+      }
+    };
+    // It was on: the press turns it off. It was off: a short press leaves it on, and a long one
+    // was "hold to talk", which turns it off again.
+    if (!press.wasOpen && performance.now() - press.at <= 600) return keep(true);
+    // A moment's grace, or the last syllable is cut off.
+    shutTimer.current = setTimeout(() => {
+      setMicOpen(false);
+      keep(false);
+    }, 400);
   }, []);
   // While the solar story is playing over the screen, its narrator must not be taken for the
   // person talking. The film says when it starts and stops.
@@ -580,55 +604,45 @@ export default function ConversationComponent({
     return () => window.removeEventListener('dhoop:story', onStory);
   }, []);
   useEffect(() => {
-    // The sound is turned down to nothing, not cut off. With the track muted no sound reaches
-    // Agora at all, and its recogniser then reports that it has failed, every ten seconds.
+    // Off is very quiet, not cut off and not dead silent. With the track muted no sound reaches
+    // Agora at all, and its recogniser then reports that it has failed, every ten seconds. With
+    // the volume at nought the sound was dead silence, and in the hall on 21 Nov 2026 a person
+    // who turned the microphone on again was not heard; why was not found. A fiftieth of the
+    // volume keeps real sound flowing, and is far too faint for a neighbour's voice to be taken
+    // for speech. "?shut=0" in the address tries nought again, outside the live site.
     try {
-      localMicrophoneTrack?.setVolume((holdToTalk && !holding) || storyPlaying ? 0 : 100);
+      const asked = process.env.NODE_ENV !== 'production' ? new URLSearchParams(window.location.search).get('shut') : null;
+      const off = asked !== null && Number(asked) >= 0 && Number(asked) <= 100 ? Number(asked) : 2;
+      localMicrophoneTrack?.setVolume(micOpen && !storyPlaying ? 100 : off);
     } catch {
       // The track is closing.
     }
-  }, [localMicrophoneTrack, holdToTalk, holding, storyPlaying]);
+  }, [localMicrophoneTrack, micOpen, storyPlaying]);
   useEffect(() => {
-    if (!holdToTalk) return;
     // Only a box that takes words keeps the space bar. A tick-box or a slider that was just used
-    // must not: with the "Loud room" box still in focus, the space bar ticked the box off and on
-    // and never opened the microphone, so nothing the person said was heard.
+    // must not: the space bar would work that control and never reach the microphone.
     const typing = (target: EventTarget | null) =>
       target instanceof HTMLElement &&
       (target.isContentEditable || target.tagName === 'TEXTAREA' || (target instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'submit'].includes(target.type)));
     const down = (event: KeyboardEvent) => {
       if (event.code !== 'Space' || typing(event.target)) return;
       event.preventDefault();
-      hold();
+      // A held key repeats itself. Only the first of them is a press.
+      if (!event.repeat) micDown();
     };
     const up = (event: KeyboardEvent) => {
       if (event.code !== 'Space' || typing(event.target)) return;
       event.preventDefault();
-      letGo();
+      micUp();
     };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
-      clearTimeout(letGoTimer.current);
+      clearTimeout(shutTimer.current);
     };
-  }, [holdToTalk, hold, letGo]);
-
-  const handleMicToggle = useCallback(async () => {
-    const next = !isEnabled;
-    const track = localMicrophoneTrack;
-    if (!track) {
-      setIsEnabled(next);
-      return;
-    }
-    try {
-      await track.setEnabled(next);
-      setIsEnabled(next);
-    } catch (error) {
-      console.error('Failed to toggle microphone:', error);
-    }
-  }, [isEnabled, localMicrophoneTrack]);
+  }, [micDown, micUp]);
 
   const handleTokenWillExpire = useCallback(async () => {
     if (!onTokenWillExpire || !joinedUID) return;
@@ -904,14 +918,18 @@ export default function ConversationComponent({
           role="group"
           aria-label="Audio controls"
         >
-          <div className="conversation-mic-host flex items-center justify-center">
+          {/* On a phone this round one is the microphone button. On a laptop the wide button below is, and this is not drawn: one button on every screen. */}
+          <div className="conversation-mic-host flex items-center justify-center lg:hidden">
             <MicButtonWithVisualizer
-              isEnabled={isEnabled}
-              setIsEnabled={setIsEnabled}
+              isEnabled={micOpen}
+              setIsEnabled={() => {}}
               track={localMicrophoneTrack}
-              onToggle={handleMicToggle}
+              onToggle={() => {
+                micDown();
+                micUp();
+              }}
               className="overflow-visible"
-              aria-label={isEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              aria-label={micOpen ? 'Turn the microphone off' : 'Turn the microphone on'}
               enabledColor="hsl(var(--primary))"
               disabledColor="hsl(var(--destructive))"
             />
@@ -928,39 +946,25 @@ export default function ConversationComponent({
             </button>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <label className="flex items-center gap-2 max-lg:group-data-[open=false]:hidden">
-            <input
-              type="checkbox"
-              checked={holdToTalk}
-              onChange={(event) => {
-                setHoldToTalk(event.target.checked);
-                setHolding(false);
-                // Let go of the box, so the space bar goes to the microphone and not back to the box.
-                event.target.blur();
-                try {
-                  window.localStorage.setItem('dhoop.holdToTalk', event.target.checked ? '1' : '0');
-                } catch {
-                  // The choice lasts for this call only.
-                }
-              }}
-            />
-            Loud room: hold to talk
-          </label>
-          {holdToTalk && (
-            <button
-              type="button"
-              onPointerDown={hold}
-              onPointerUp={letGo}
-              onPointerLeave={letGo}
-              onPointerCancel={letGo}
-              aria-pressed={holding}
-              className={`select-none touch-none rounded-md border-2 border-foreground px-4 py-2 text-sm font-bold ${holding ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'}`}
-            >
-              {holding ? 'Listening…' : 'Hold here, or the space bar, and speak'}
-            </button>
-          )}
-        </div>
+        {/* The one microphone button, for the cursor or the space bar. Its words say what it is doing now and what a press will do. */}
+        <button
+          type="button"
+          onPointerDown={micDown}
+          onPointerUp={micUp}
+          onPointerLeave={micUp}
+          onPointerCancel={micUp}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.repeat) micDown();
+          }}
+          onKeyUp={(event) => {
+            if (event.key === 'Enter') micUp();
+          }}
+          aria-pressed={micOpen}
+          className={`hidden select-none touch-none rounded-md border-2 border-foreground px-4 py-2.5 text-center lg:block ${micOpen ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'}`}
+        >
+          <span className="block text-base font-bold">{micOpen ? 'Microphone on: Dhoop is listening' : 'Microphone off: Dhoop cannot hear you'}</span>
+          <span className="block text-xs font-medium">{micOpen ? 'Press the space bar, or click here, to turn it off' : 'Press the space bar, or click here, then speak'}</span>
+        </button>
         <div className="flex w-full items-center gap-1.5 max-lg:overflow-x-auto max-lg:group-data-[open=false]:hidden lg:max-h-[6.5rem] lg:flex-wrap lg:overflow-y-auto" role="group" aria-label="Things to try saying">
           <span className="label-caps shrink-0">Try</span>
           {TRY_SAYING.map((line) => (
