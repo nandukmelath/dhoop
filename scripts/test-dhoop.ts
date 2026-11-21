@@ -40,6 +40,7 @@ import { designSystem, monthlyInstalment, polygonAreaM2, roofCapacity, standardS
 import { eligibilityVerdict, SUBSIDY_STEPS } from '../lib/dhoop/steps';
 import { ensureSession, getSession, MAX_TURNS, rememberTurns, resetStore, sessionOfAgent, sessionsDeciding, updateSession } from '../lib/dhoop/store';
 import { leadFor, townOf } from '../lib/dhoop/lead';
+import { sampleSessions } from '../lib/dhoop/sampleLeads';
 import { agoraTools, beforeTool, findTool, sessionBrief, TOOLS, languageSaid } from '../lib/dhoop/tools';
 
 test('subsidy follows the official slabs', () => {
@@ -1393,4 +1394,27 @@ test('a lead is rated by what the household did, and a looker stays low', () => 
   assert.equal(townOf('Kundalahalli, Bengaluru'), 'Bengaluru');
   assert.equal(townOf(undefined), 'Place not given');
   resetStore();
+});
+
+test('the sample households are rated by the same code, and cannot be taken for real ones', () => {
+  const made = sampleSessions(Date.UTC(2026, 10, 21, 8));
+  assert.ok(made.length >= 8);
+  const tiers = made.map((s) => leadFor(s).tier);
+  // A full inbox shows every rating, or it teaches an installer nothing.
+  for (const tier of ['high', 'medium', 'low']) assert.ok(tiers.filter((t) => t === tier).length >= 2, `too few ${tier} samples`);
+  for (const s of made) {
+    assert.match(s.id, /^sample-/);
+    // No sample carries a person's name, and none is in the store.
+    if (s.survey) assert.equal(s.survey.homeowner, 'Sample household');
+    assert.equal(getSession(s.id), undefined);
+    const lead = leadFor(s);
+    assert.ok(lead.pitch.length > 20 && lead.score <= 100);
+  }
+  // The one that has already chosen a vendor is rated low however much it did.
+  assert.equal(leadFor(made.find((s) => s.id === 'sample-mysuru')!).tier, 'low');
+  // A household with its visit booked and feasibility approved opens with the visit.
+  const top = leadFor(made.find((s) => s.id === 'sample-whitefield')!);
+  assert.equal(top.tier, 'high');
+  assert.match(top.pitch, /visit is booked/);
+  assert.ok(top.insights.some((i) => i.label === 'Loan'));
 });

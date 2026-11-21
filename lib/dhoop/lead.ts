@@ -1,5 +1,6 @@
-import { SQFT_PER_M2 } from './config';
+import { LANGS, SQFT_PER_M2 } from './config';
 import { inr } from './solar';
+import { SUBSIDY_STEPS } from './steps';
 import type { Session } from './store';
 
 /**
@@ -55,7 +56,29 @@ export interface Lead {
   /** How many things were asked of Dhoop, and of how many kinds. */
   asks: number;
   topics: number;
+  /** What an installer sells from: the money, the stage, the language, what was asked. */
+  insights: { label: string; value: string }[];
+  /** How to open the call, drawn from the same facts. A suggestion, not a script. */
+  pitch: string;
 }
+
+/** What each thing a household asked Dhoop to do tells an installer it cares about. */
+const ASKED_ABOUT: Record<string, string> = {
+  loanPlan: 'the bank loan',
+  compareSizes: 'a different size',
+  longRunSavings: 'earnings over 25 years',
+  sunForecast: 'the week’s sunshine',
+  powerNow: 'what the roof makes right now',
+  checkEligibility: 'whether they qualify',
+  subsidySteps: 'the subsidy steps',
+  findVendors: 'who installs nearby',
+  showNeighbourhood: 'their neighbourhood',
+  changeRoof: 'the size of the roof',
+  moveRoof: 'the outline of the roof',
+  nextBuilding: 'which building is theirs',
+  playSolarStory: 'something to show the family',
+  comparePlaces: 'another town',
+};
 
 export function leadFor(s: Session): Lead {
   const P = LEAD_POINTS;
@@ -82,12 +105,12 @@ export function leadFor(s: Session): Lead {
   if (s.design) add(P.system, `System designed: ${s.design.kw} kW, about ${inr(s.design.grossCost)}`);
   else missing.push('No system sized yet');
   const e = s.application?.eligibility;
+  const notMet = !!e && [e.home, e.name, e.bank, e.roof].includes('no');
   if (e) {
-    const answers = [e.home, e.name, e.bank, e.roof];
-    if (answers.every((a) => a === 'yes')) add(P.conditionsMet, 'Meets all four subsidy conditions');
+    if ([e.home, e.name, e.bank, e.roof].every((a) => a === 'yes')) add(P.conditionsMet, 'Meets all four subsidy conditions');
     else {
       add(P.conditionsAsked, 'Went through the subsidy conditions');
-      if (answers.includes('no')) missing.push('One subsidy condition is not met yet');
+      if (notMet) missing.push('One subsidy condition is not met yet');
     }
   }
 
@@ -121,11 +144,47 @@ export function leadFor(s: Session): Lead {
             ? 'Send a quote. Still deciding.'
             : 'Interested. Has not asked for quotes yet.'
           : 'Looking around. No action yet.';
-  return { score, tier, reasons, missing, next, asks, topics };
+
+  // What an installer sells from. Every line is read from the session, never made up.
+  const insights: Lead['insights'] = [];
+  const say = (label: string, value?: string | null) => {
+    if (value) insights.push({ label, value });
+  };
+  if (s.design) {
+    say('Saves a month', inr(s.design.monthlySavings));
+    say('Pays back in', `${s.design.paybackYears} years`);
+    say('Subsidy due', inr(s.design.subsidy));
+    say('Covers', `${Math.round(s.design.coverage * 100)}% of their use`);
+  }
+  say('On the portal', stages > 0 ? `${stages} of 10 stages done, up to "${SUBSIDY_STEPS[Math.min(stages, SUBSIDY_STEPS.length) - 1].title}"` : e ? 'Not registered yet' : null);
+  if (s.loan) say('Loan', `${inr(s.loan.instalment)} a month, against ${inr(s.loan.saving)} saved`);
+  say('Spoke', LANGS[s.lang]?.label);
+  const askedAbout = [...new Set(s.log.map((l) => ASKED_ABOUT[l.kind]).filter(Boolean))];
+  say('Asked about', askedAbout.slice(0, 4).join(', '));
+
+  // How to open the call: the two strongest things this household has shown.
+  const lines: string[] = [];
+  if (taken) lines.push('They have already chosen a vendor on the portal. Do not spend a call on this one.');
+  else {
+    if (s.booking) lines.push(`The visit is booked for ${s.booking.day}, ${s.booking.time}. Arrive with a written quote and the panel warranty.`);
+    if (stages === 3) lines.push('Feasibility is approved, so the only thing missing is a vendor. Offer your earliest installation date.');
+    else if (stages === 2) lines.push('The application is in and waiting for feasibility. Offer to be the vendor the moment it clears.');
+    if (s.loan) lines.push(`They asked about the loan. Lead with the instalment, ${inr(s.loan.instalment)} a month, against a saving of ${inr(s.loan.saving)}.`);
+    if (notMet) lines.push('One subsidy condition is not met yet. Help them put it right first, and the sale follows.');
+    if (s.compare) lines.push(`They compared ${s.compare.a.kw} kW with ${s.compare.b.kw} kW. Quote both.`);
+    if (s.design?.limitedByRoof) lines.push('The roof, not the bill, limits the size. Confirm the usable area on site.');
+    if (!lines.length) lines.push(s.design ? `Send a quote for ${s.design.kw} kW. Their saving is ${inr(s.design.monthlySavings)} a month, paid back in ${s.design.paybackYears} years.` : 'Too early to call. They have not sized a system yet.');
+  }
+  return { score, tier, reasons, missing, next, asks, topics, insights, pitch: lines.slice(0, 2).join(' ') };
 }
 
 /** The town at the end of a place's name ("Kundalahalli, Bengaluru" gives "Bengaluru"): as much of an address as a lead that was not passed on may show. */
 export function townOf(label?: string): string {
   const parts = (label ?? '').split(',').map((p) => p.trim()).filter(Boolean);
   return parts[parts.length - 1] ?? 'Place not given';
+}
+
+/** What holds a household back, for the list of those still deciding: the first thing missing other than the asking itself. */
+export function heldBy(lead: Lead): string {
+  return lead.missing.find((m) => m !== 'Has not asked for quotes') ?? (lead.tier === 'high' ? 'Ready, and has not asked for quotes' : 'Has not asked for quotes');
 }
