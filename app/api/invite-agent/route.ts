@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     }
     // A test may ask for a listening setup by name. Not in a production build.
     // "ares@40" means the first 40 names only, and "ares@40+20" the 40 after the first 20: for finding a name the recogniser refuses.
-    const forced: Listening | undefined = process.env.NODE_ENV !== 'production' ? LISTENINGS.find((l) => l === String(body.stt ?? '').split(/[@!]/)[0]) : undefined;
+    // On the live site one plain name is honoured, "?stt=deepgram": a presenter in a loud hall can
+    // move a call off Agora's own recogniser and hear which one copes better. The test switches stay shut there.
+    const asked = String(body.stt ?? '');
+    const forced: Listening | undefined = process.env.NODE_ENV !== 'production' ? LISTENINGS.find((l) => l === asked.split(/[@!]/)[0]) : asked === 'deepgram' ? 'deepgram-terms' : undefined;
 
     const { agent, toolsOn, voice, pipeline, listening } = buildAgent({
       client,

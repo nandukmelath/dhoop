@@ -590,7 +590,12 @@ export default function ConversationComponent({
   }, [localMicrophoneTrack, holdToTalk, holding, storyPlaying]);
   useEffect(() => {
     if (!holdToTalk) return;
-    const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    // Only a box that takes words keeps the space bar. A tick-box or a slider that was just used
+    // must not: with the "Loud room" box still in focus, the space bar ticked the box off and on
+    // and never opened the microphone, so nothing the person said was heard.
+    const typing = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      (target.isContentEditable || target.tagName === 'TEXTAREA' || (target instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'submit'].includes(target.type)));
     const down = (event: KeyboardEvent) => {
       if (event.code !== 'Space' || typing(event.target)) return;
       event.preventDefault();
@@ -931,6 +936,8 @@ export default function ConversationComponent({
               onChange={(event) => {
                 setHoldToTalk(event.target.checked);
                 setHolding(false);
+                // Let go of the box, so the space bar goes to the microphone and not back to the box.
+                event.target.blur();
                 try {
                   window.localStorage.setItem('dhoop.holdToTalk', event.target.checked ? '1' : '0');
                 } catch {
